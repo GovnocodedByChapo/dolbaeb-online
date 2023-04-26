@@ -41,8 +41,10 @@ Net.Packet = {
     RoomUpdate = 10,
     RequestRoomUpdate = 11,
     ThrowCard = 12,
-    Ready = 13,
-    ChatMessage = 14
+    ThrowCardResponse = 13,
+    Ready = 14,
+    ChatMessage = 15,
+    SendEmoji = 16
 }
 
 Net.PacketStruct = {
@@ -85,7 +87,19 @@ Net.PacketStruct = {
     [Net.Packet.ThrowCard] = {
         { BS_INT16, 'roomId' },
         { BS_INT16, 'slotId' },
-        { BS_STRING, 'card', 3 }
+        { BS_INT16, 'level' },
+        { BS_INT16, 'usernameLen' },
+        { BS_STRING, 'username' },
+        { BS_STRING, 'card', 3}
+    },
+    [Net.Packet.ThrowCardResponse] = {
+        { BS_BOOLEAN, 'status' },
+        { BS_INT16, 'roomId' },
+        { BS_INT16, 'usernameLen' },
+        { BS_STRING, 'username' },
+        { BS_INT16, 'slot' },
+        { BS_INT16, 'slotLevel' },
+        { BS_STRING, 'cardCode', 3 },
     },
     [Net.Packet.Ready] = {
         { BS_INT16, 'roomId' },
@@ -103,6 +117,7 @@ function Net.readPacket(id, bs)
     local data = {}
     for index, item in ipairs(struct) do
         local valueType, name = item[1], item[2]
+        print('reading', name, 'size', valueType == BS_STRING and item[3] or previousValue)
         local value = bs:read(item[1], valueType == BS_STRING and item[3] or previousValue) 
         data[name] = value
         previousValue = value

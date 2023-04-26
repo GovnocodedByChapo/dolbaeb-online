@@ -25,16 +25,19 @@ export interface Room {
     trumpCard: string,
     cardsQueue: string[],
     activePlayer?: Player,
+    beatPlayer?: Player,
     activePlayerTime?: number,
     table: Array<Array<string>>,
     state: GameState
 };
 
+import { ThrowCard } from "./packets";
+
 export const cards: string[] = [ 
-    'd6', 'd7', 'd8', 'd9', 'd10', 'd11', 'd12', 'd13', 'd14',
-    'h6', 'h7', 'h8', 'h9', 'h10', 'h11', 'h12', 'h13', 'h14',
-    'c6', 'c7', 'c8', 'c9', 'c10', 'c11', 'c12', 'c13', 'c14',
-    's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13', 's14'
+    'd06', 'd07', 'd08', 'd09', 'd10', 'd11', 'd12', 'd13', 'd14',
+    'h06', 'h07', 'h08', 'h09', 'h10', 'h11', 'h12', 'h13', 'h14',
+    'c06', 'c07', 'c08', 'c09', 'c10', 'c11', 'c12', 'c13', 'c14',
+    's06', 's07', 's08', 's09', 's10', 's11', 's12', 's13', 's14'
 ];
 
 export const getCard = (code: string): [string, number] => {
@@ -45,7 +48,7 @@ export const getCard = (code: string): [string, number] => {
 
 // python is shit
 export const isCardAllowed = (tableSlot: Array<string>, card: string, slot: number, trumpCard: string): [boolean, string] => {
-    if (!tableSlot[1]) return [true, 'OK_FIRST_CARD'];
+    if (!tableSlot?.[1]) return [true, 'OK_FIRST_CARD'];
     const [ trumpType ] = getCard(trumpCard);
     const [ targetType, targetNumber ] = getCard(tableSlot[1]);
     const [ cardType, cardNumber ] = getCard(card);
@@ -53,6 +56,31 @@ export const isCardAllowed = (tableSlot: Array<string>, card: string, slot: numb
     return [false, 'UNKNOWN'];
 };
 
+export const processCardThrow = (room: Room, card: ThrowCard) => {
+    console.log(`isTableClear ${isTableClear(room.table)}`)
+    const table = room.table;
+    if (room.activePlayer?.name == card.username || card.username == 'chapo') {
+        return isTableClear(table) || isCardOnTable(table, card.card);
+    } else if (room.beatPlayer?.name == card.username) {
+
+        
+
+        // return isCardAllowed(table, card.card, card.slotId, room.trumpCard);
+    };
+    return false
+};
+
+export const isCardOnTable = (table: Array<Array<string>>, card: string): boolean => {
+    const [ cardType, cardNumber ] = getCard(card);
+    return table.every( (slot) => {
+        slot.every( slotCard => {
+            const [ tType, tNumber ] = getCard(slotCard);
+            return cardNumber == tNumber;
+        });
+    });
+};
+
+export const isTableClear = (table: Array<Array<string>>): boolean => table.every(a => a.length === 0);
 export const getReadyPlayers = (room: Room): number => {
     let count = 0;
     for (const player of room.players) if (player.ready) count ++;

@@ -1,7 +1,7 @@
 import { SNetServer, BitStream, SNET_PRIORITES } from './snet';
 import { Packet, PacketStruct, readPacket, writePacket } from './packets';
 import { shuffle, getRandomInt } from './utils';
-import { Player, Room, cards, isCardAllowed, GameState, getReadyPlayers } from './logic';
+import { Player, Room, cards, isCardAllowed, GameState, getReadyPlayers, processCardThrow } from './logic';
 const server = new SNetServer({ port: 11321 });
 server.on('ready', () => {
     console.log('@server: started');
@@ -27,7 +27,7 @@ server.on('onReceivePacket', async (id, bs, ip, port) => {
                 players: [],
                 trumpCard: roomsCards[roomsCards.length - 1],
                 cardsQueue: roomsCards,
-                table: [],
+                table: [ [], [], [], [], [], [] ],
                 state: GameState.WAIT_FOR_PLAYERS
             });
             console.log('sended CreateRoomResponse')
@@ -44,6 +44,8 @@ server.on('onReceivePacket', async (id, bs, ip, port) => {
             if (rooms[data.roomId].players.findIndex(p => p.name === data.username) != -1) {
                 return send(Packet.JoinRoomResponse, {status: false, messageLen: 1, message: 'nickname_taken', roomLen: ('nickname_taken').length, room: ''}, ip, port);
             }
+
+            rooms[data.roomId].state = GameState.IN_PROGRESS;// rooms[data.roomId].players.length == 3 ? GameState.WAIT_FOR_READY : GameState.WAIT_FOR_PLAYERS;
 
             rooms[data.roomId].players.push({
                 name: data.username,
@@ -67,8 +69,24 @@ server.on('onReceivePacket', async (id, bs, ip, port) => {
             return send(Packet.RoomUpdate, { jsonLen: roomData.length, json: roomData }, ip, port);
 
         case Packet.ThrowCard:
-            const [ok] = isCardAllowed(rooms[data.roomId].table[data.slot], data.card, data.slot, rooms[data.roomId].trumpCard);
-            return
+            if (!rooms[data.roomId]) return
+            const processResult = processCardThrow(rooms[data.roomId], data);
+            console.log(`processCardThrow ${processResult}`);
+
+
+
+            // const [ok] = isCardAllowed(rooms[data.roomId].table[data.slotId], data.card, data.slotId, rooms[data.roomId].trumpCard);
+            if (processResult) rooms[data.roomId].table[data.slotId][data.level - 1] = data.card
+            return send(Packet.ThrowCardResponse, {
+                status: processResult, 
+                roomId: data.roomId,
+                usernameLen: data.usernameLen,
+                username: data.username,
+                slot: data.slotId,
+                slotLevel: data.level,
+                cardCode: data.card
+                
+            }, ip, port);
 
         case Packet.Ready:
             const index = rooms[data.roomId].players.findIndex(p => p.name === data.username)
@@ -78,6 +96,7 @@ server.on('onReceivePacket', async (id, bs, ip, port) => {
             const message = `[Ready] ${readyPlayersCount} / 3`
             sendToRoom(Packet.ChatMessage, { messageLen: message.length, message: message }, rooms[data.roomId]);
             if (readyPlayersCount == 3) {
+                rooms[data.roomId].activePlayer = rooms[data.roomId].players[getRandomInt(3)];
 
             };
         default:
@@ -98,6 +117,7 @@ const sendToRoom = (id: Packet, data: Object, room: Room): void => {
     for (const player of room.players) {
         if (player.ip && player.port) {
             send(id, data, player.ip, player.port);
+            console.log(`[ROOM-RESEND] PLAYER: ${player.name}, IP: ${player.ip}, PACKET: ${id}`);
         };
     };
 };

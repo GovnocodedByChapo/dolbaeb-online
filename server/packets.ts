@@ -12,8 +12,10 @@ export enum Packet {
     RoomUpdate = 10,
     RequestRoomUpdate = 11,
     ThrowCard = 12,
-    Ready = 13,
-    ChatMessage = 14
+    ThrowCardResponse = 13,
+    Ready = 14,
+    ChatMessage = 15,
+    SendEmoji = 16
 };
 
 export const PacketStruct = {
@@ -56,7 +58,19 @@ export const PacketStruct = {
     [Packet.ThrowCard]: [
         [ 'BS_INT16', 'roomId' ],
         [ 'BS_INT16', 'slotId' ],
+        [ 'BS_INT16', 'level' ],
+        [ 'BS_INT16', 'usernameLen' ],
+        [ 'BS_STRING', 'username' ],
         [ 'BS_STRING', 'card', 3]
+    ],
+    [Packet.ThrowCardResponse]: [
+        [ 'BS_BOOLEAN', 'status' ],
+        [ 'BS_INT16', 'roomId' ],
+        [ 'BS_INT16', 'usernameLen' ],
+        [ 'BS_STRING', 'username' ],
+        [ 'BS_INT16', 'slot' ],
+        [ 'BS_INT16', 'slotLevel' ],
+        [ 'BS_STRING', 'cardCode', 3 ],
     ],
     [Packet.Ready]: [
         [ 'BS_INT16', 'roomId' ],
@@ -89,9 +103,11 @@ export interface CreateRoom {
 
 export interface ThrowCard {
     roomId: number,
+    usernameLen: number
     username: string,
     card: string,
-    slot: number
+    slotId: number,
+    level: number
 }
 export function readPacket(id: Packet.ThrowCard, bs: BitStream): ThrowCard; 
 export function readPacket(id: Packet.JoinRoom, bs: BitStream): JoinRoom; 
@@ -105,7 +121,8 @@ export function readPacket(id: Packet, bs: BitStream): unknown {
 
     let prevValue;
     for (const item of struct) {
-        const val = bs[bsTypes[item[0]].read](item[0] == 'BS_STRING' ? prevValue : null);
+        console.log(`reading ${item[1]}, size: ${item[0] == 'BS_STRING' ? (item?.[2] || prevValue) : null}`)
+        const val = bs[bsTypes[item[0]].read](item[0] == 'BS_STRING' ? (item?.[2] || prevValue) : null);
         prevValue = val;
         data[item[1]] = val;
         // console.log(val, item);

@@ -4,25 +4,27 @@ Language = {
 
 local utils = require('lib.dolbaeb.utils')
 
+function Language.getList()
+    return utils.getFilesInPath(Language.path, '*.json')
+end
+
 function Language.loadLanguage(code)
-    local list = utils.getFilesInPath(Language.path, '*.json')
-    local tags = {}
-    for _, name in ipairs(list) do
-        if name == code then
-            local F = io.open(Language.path..'\\'..name, 'r')
-            if F then
-                local fileContent = F:read('*a')
-                F:close()
-                local status, json = pcall(decodeJson, fileContent)
-                if status and json ~= nil then
-                    tags = json
-                end
+    assert(code, 'Language code not provided')
+    local langPath, tags = Language.path..'\\'..code..'.json', nil
+    if doesFileExist(langPath) then
+        local file = io.open(langPath, 'r')
+        if file then
+            local json = file:read('*a')
+            file:close()
+
+            local status, decoded = pcall(decodeJson, json)
+            if status and decoded then
+                tags = decoded
             end
-            break
         end
     end
     return function(tag)
-        return tags[tag] or 'E:'..tag
+        return tags and tags[tag] or tag
     end
 end
 
